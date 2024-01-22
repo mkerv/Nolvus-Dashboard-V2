@@ -1,4 +1,8 @@
 ﻿//this is converted from Vektors "downloadmanager" code email me here for inquiries: masonmesser23@gmail.com
+//I know this is a lot of copy/paste but I'm adding a speed limit function!
+//the speed limit function will be configurable when you start the installer.
+//I'm also going to make the installer be able to function offline
+//IDK why Vektor uses the Nolvus login, or why you even have to create an acct. Will investigate...
 
 
 using System;
@@ -166,6 +170,234 @@ namespace DownloadManager
                 SW.Stop();
                 _IsDownloadComplete = true;
                 OnFileDownloadCompletedEvent(this, new FIleDownloadRequestEvent(downloadItem.Url));
+            }
+        }
+    }
+
+    //Checking if the server is recieving requests
+    public bool CanDownload(IWebBrowser chromiumWebBrowser, IBrowser browser, string url, string requestMethod)
+    {
+        if (!Linkonly)
+        {
+            return true;
+        }
+
+        //failure protocall
+        else
+        {
+            OnFileDownloadRequestEvent(this, new FileDownloadRequestEvent(url))
+            return false;
+        }
+    }
+
+    //setting up the browser
+    public class ChromeDownloader : chromiumWebBrowser
+    {
+        private BrowserWindow Browser;
+        private WebSite WebSite;
+        private string File;
+        private string ModId;
+        private TaskCompletionSource<object> TaskCompletionDownload = new TaskCompletionSource<object>();
+        private TaskCompletionSource<string> TaskCompletionDownloadLink = new TaskCompletionSource<string>();
+        event OnFileDownloadRequestedHandler OnFileDownloadRequestEvent;
+        public event OnFileDownloadRequestedHandler OnFileDownloadRequestedHandler
+        {
+            //I feel like this is repeated somewhere else...
+            add
+            {
+                if (OnFileDownloadRequestEvent != null)
+                {
+                    lock (OnFileDownloadCompletedEvent)
+                    {
+                        OnFileDownloadRequestEvent += value;
+                    }
+                }
+                else
+                {
+                    OnFileDownloadRequestEvent = value;
+                }
+            }
+            remove
+            {
+                if (OnFileDownloadRequestEvent != null)
+                {
+                    lock (OnFileDownloadRequestEvent)
+                    {
+                        OnFileDownloadRequestEvent -= value;
+                    }
+                }
+            }
+
+            private string _Urla;
+            public string Url {get { return _Url;}}
+
+            //setting up link types (enb, Nexus, and other)
+            public ChromiumDownloader(BrowserWindow Window, string address, bool LinkOnly, DownloadProgressChangedHAndler OnProgress)
+                :base(address)
+            {
+                _Url = address;
+                Browser = Window;
+
+                Dock = DockStyle.Fill;
+
+                if (_Url.Contains("nexusmods.com"))
+                {
+                    WebSite = WebSite.Nexus;
+                }
+                else if (Url.Contains("enbdev.com"))
+                {
+                    Website = Website.EnbDev;
+                }
+                else
+                {
+                    WebSite = Website.Other
+                }
+
+                DownloadHandler = new ChromeDownloadHandler(LinkOnly, OnProgress);
+                (DownloadHandler as ChromeDownloadHandler).OnFileDownloadRequest += DownloadRequested;
+                (DownloadHandler as ChromeDownloadHandler).OnFileDOwnloadCompleted += DownloadCompleted;
+
+                this.LoadingStateChanged += Browser_LoadingStateChanged;
+                this.FrameLoadEnd += Browser_FramLoadEnd;
+
+                TaskCompletionDownload = new TaskCompletionSource<obkect>();
+                TaskCompletionDownloadLink = new TaskCompletionSource<string>();
+            }
+            
+            //what to do with nexus links
+            private void Browser_FramLoadEnd(object sender, CefSharp.FrameLoadEndEventArgs e)
+            {
+                if (e.Frame.IsMain)
+                {
+                    switch (Website)
+                    {
+                        case WebSite.Nexus:
+                            HAndleNexusLoadEnd(e.Url);
+                            break;
+                    }
+                }
+            }
+
+            private void Browser_LoadingStateChanged(object sender, CefSharp.LoadingStateChangedEventArgs e)
+            {
+                if (!e.IsLoading)
+                {
+                    UnRegisterLoadingStateEvent();
+
+                    switch (website)
+                    {
+                        case WebSite.Nexus:
+                            HandleNexusLoadState();
+                            break;
+                        case WebSite.EnbDev:
+                            HandleEnbDev();
+                            break;
+                        case Website.Other:
+                            HandleOthers();
+                            break;
+                    }
+                }
+            }
+
+            private void RegisterFrameLoadEnd()
+            {   
+                this.FrameLoadEnd += Browser_FrameLoadEnd;
+            }
+
+            private void UnRegisterFrameLoadEnd()
+            {
+                this.FrameLoadEnd -= Browser_FrameLoadEnd;
+            }
+
+            private void RegisterLoadingStateEvent()
+            {
+                this.LoadingStateChanged += Browser_LoadingStateChanged;
+            }
+            private void UnRegisterLoadingStateEvent()
+            {
+                this.LoadingStateChanged -= Browser_LoadingStateChanged;
+            }
+
+            private void DownloadRequested(object sender, FileDownloadRequestEvent EventArgs)
+            {
+                TaskCompletionDownloadLink.SetResult(EventArgs.DownloadUrl);
+                OnFileDownloadRequestEvent(this, EventArgs);
+            }
+
+            private void DownloadCompleted(object sender, FileDownloadRequestEvent EventArgs)
+            {
+                TaskCompletionDownload.SetResult(null);
+            }
+
+            public bool IsDownloadComplete
+            {
+                get{
+                    return (DownloadHandler as ChromeDownloadHandler).IsDownloadComplete;
+                }
+            }
+
+            public Task AwaitDownload(string FileName)
+            {
+                File = FileName;
+                return TaskCompletionDownload.Task;
+            }
+
+            public Task<string> AwaitDownloadLink(string NexusModId)
+            {
+                ModId = NexusModId;
+                return TaskCompletionDownloadLink.Task;
+            }
+
+            #region Scripts
+
+            private async Task<bool> EvaluateScriptWithResponse(string Script)
+            {
+                var Script Execution = await this.GetMainFrame().EvaluateeScriptAsync(Script);
+// praying to fucking god this works...
+                return ScriptExecution.Success && (int)ScriptExecution.Result == 1;
+            }
+
+            private async Task EvaluateScript(string Script)
+            {
+                await this.GetMainFrame.EvaluateScriptAsync(Script);
+            }
+
+            private voide ExecutrScript(string Script)
+            {
+                this.GetMainFrame().ExecuteJavaScriptAsync(Script);
+            }
+
+            #endregion
+            #region NExus
+
+            private async Task<bool> IsLoginNeeded()
+            {
+                return await EvaluateScriptWithResponse(ScriptManager.GetIsLoginNeeded());
+            }
+
+            private void RedirectToLogin()
+            {
+                ExecuteScript(ScriptManager.GetRedirectToLogin());
+            }
+
+            private async Task<bool> IsModNotFound()
+            {
+                return await EvaluateScriptWithResponse(ScriptManager.GetIsModNotFound());
+            }
+
+            private async Task<bool> IsDownloadAvailable()
+            {
+                return await EvaluateScriptWithResponse(ScriptManager.GetIsDownloadAvailable());
+            }
+
+            private async void InitializeNexusManualDownload()
+            {
+                await EvaluateScript(ScriptManager.GetNexusManualDownloadInit());
+
+                await Task.Delay(100).ContinueWith(T =>
+                {
+                    ExecuteScript(ScriptManager.getNexusManualDownload());
+                });
             }
         }
     }
