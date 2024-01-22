@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34511.84
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nolvus Dashboard V2", "Nolvus Dashboard V2.csproj", "{705A547F-5C09-4B39-8794-3EEEFE3E4DE4}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{705A547F-5C09-4B39-8794-3EEEFE3E4DE4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{705A547F-5C09-4B39-8794-3EEEFE3E4DE4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{705A547F-5C09-4B39-8794-3EEEFE3E4DE4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{705A547F-5C09-4B39-8794-3EEEFE3E4DE4}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {38B10C0E-8DA0-442E-B57B-41F79482C018}
+	EndGlobalSection
+EndGlobal
